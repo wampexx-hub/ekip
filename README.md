@@ -69,13 +69,24 @@ ekip/
 │   │   ├── Services/          # İş mantığı servisleri
 │   │   └── Data/              # Entity Framework context ve entity'ler
 │   │
+│   ├── Ekip.AdminDashboard/   # Blazor Server admin paneli
+│   │   ├── Pages/             # Razor sayfaları
+│   │   ├── Services/          # Dashboard servisleri
+│   │   └── Shared/            # Layout ve bileşenler
+│   │
 │   └── Ekip.Shared/           # Ortak modeller ve DTO'lar
 │       ├── DTOs/              # Veri transfer objeleri
 │       ├── Enums/             # Enum tanımları
 │       └── Interfaces/        # Ortak interface'ler
 │
+├── installers/
+│   ├── server/                # Sunucu installer (Inno Setup)
+│   ├── client/                # İstemci installer (Inno Setup)
+│   └── build.ps1              # Build ve paketleme scripti
+│
 ├── docs/
-│   └── PRD.md                 # Ürün Gereksinim Dokümanı
+│   ├── PRD.md                 # Ürün Gereksinim Dokümanı
+│   └── INSTALLATION.md        # Sunucu kurulum rehberi
 │
 └── Ekip.sln                   # Visual Studio solution dosyası
 ```
@@ -159,6 +170,57 @@ Sunucu ayarları `src/Ekip.Server/appsettings.json` dosyasından yapılandırıl
 | Kullanıcı | Mesaj gönderme, dosya paylaşma, durum yönetimi |
 | Moderatör | Grup sohbetlerini yönetme, kullanıcı ekleme/çıkarma |
 | Sistem Yöneticisi | AD entegrasyonu, gözetim araçları, log denetimi |
+
+## Kurulum
+
+### Installer ile Kurulum (Önerilen)
+
+#### Sunucu Kurulumu
+1. `EkipServerSetup-x.x.x.exe` dosyasını çalıştırın
+2. Kurulum sihirbazı sizi yönlendirecektir:
+   - PostgreSQL bağlantı bilgilerini girin
+   - Redis bağlantı bilgilerini girin
+   - Sunucu port ayarlarını yapın
+   - Active Directory ayarlarını yapılandırın
+3. Kurulum tamamlandığında istemci bağlantı bilgileri gösterilecektir
+
+#### İstemci Kurulumu
+1. `EkipSetup-x.x.x.exe` dosyasını çalıştırın
+2. Sunucu bağlantı bilgilerini girin (sunucu kurulumunda verilen bilgiler)
+3. Kullanıcı tercihlerini yapılandırın
+4. Kurulum tamamlandığında uygulama otomatik başlayacaktır
+
+### Installer Oluşturma
+
+Installer dosyalarını oluşturmak için:
+
+```powershell
+# Tüm bileşenleri derle ve installer'ları oluştur
+.\installers\build.ps1 -Target All -Version "1.0.0"
+
+# Sadece sunucu installer'ını oluştur
+.\installers\build.ps1 -Target Server -Version "1.0.0"
+
+# Sadece istemci installer'ını oluştur
+.\installers\build.ps1 -Target Client -Version "1.0.0"
+```
+
+**Gereksinimler:**
+- Windows 10/11 veya Windows Server 2019+
+- .NET 8 SDK
+- [Inno Setup 6.2+](https://jrsoftware.org/isdl.php)
+
+## Admin Dashboard
+
+Admin Dashboard, sunucu ile birlikte kurulur ve şu özellikleri sunar:
+- Kullanıcı yönetimi
+- Grup yönetimi
+- Mesaj istatistikleri
+- Sistem durumu izleme
+- Gözetim (Surveillance) ayarları
+- Sistem yapılandırması
+
+Varsayılan olarak `http://localhost:5002` adresinde erişilebilir.
 
 ## Lisans
 

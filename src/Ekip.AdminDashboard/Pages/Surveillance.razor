@@ -1,0 +1,205 @@
+@page "/surveillance"
+@inject StatisticsService StatsService
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Gozetim Ayarlari - Ekip Admin</PageTitle>
+
+<div class="surveillance-page">
+    <div class="page-header">
+        <h2>Gozetim ve DLP Ayarlari</h2>
+    </div>
+
+    <div class="surveillance-sections">
+        <div class="section-card">
+            <h3>Keyword Izleme</h3>
+            <p class="section-desc">Belirli anahtar kelimeleri iceren mesajlari izleyin ve bildirim alin.</p>
+
+            <div class="keywords-list">
+                @foreach (var keyword in watchedKeywords)
+                {
+                    <div class="keyword-item">
+                        <span class="keyword-text">@keyword.Text</span>
+                        <span class="keyword-action @keyword.Action.ToLower()">@keyword.Action</span>
+                        <button class="btn-icon danger" @onclick="() => RemoveKeyword(keyword.Id)">&#x1F5D1;</button>
+                    </div>
+                }
+            </div>
+
+            <div class="add-keyword">
+                <input type="text" @bind="newKeyword" placeholder="Yeni anahtar kelime" />
+                <select @bind="newKeywordAction">
+                    <option value="Log">Kaydet</option>
+                    <option value="Alert">Uyar</option>
+                    <option value="Block">Engelle</option>
+                </select>
+                <button class="btn btn-primary" @onclick="AddKeyword">Ekle</button>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>Dosya Politikalari</h3>
+            <p class="section-desc">Dosya paylasimi icin kurallar ve kisitlamalar belirleyin.</p>
+
+            <div class="policy-items">
+                <div class="policy-item">
+                    <label>
+                        <input type="checkbox" @bind="filePolicy.AllowExecutables" />
+                        Calistirilabilir dosyalara izin ver (.exe, .bat, .ps1)
+                    </label>
+                </div>
+                <div class="policy-item">
+                    <label>
+                        <input type="checkbox" @bind="filePolicy.AllowArchives" />
+                        Arsiv dosyalarina izin ver (.zip, .rar, .7z)
+                    </label>
+                </div>
+                <div class="policy-item">
+                    <label>Maksimum dosya boyutu (MB)</label>
+                    <input type="number" @bind="filePolicy.MaxFileSizeMB" min="1" max="500" />
+                </div>
+            </div>
+
+            <div class="blocked-extensions">
+                <label>Engellenen uzantilar (virgul ile ayirin)</label>
+                <input type="text" @bind="filePolicy.BlockedExtensions" placeholder=".exe, .bat, .cmd" />
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>Webhook Entegrasyonu</h3>
+            <p class="section-desc">Gozetim olaylarini harici sistemlere iletin.</p>
+
+            <div class="webhook-config">
+                <div class="form-group">
+                    <label>Webhook URL</label>
+                    <input type="url" @bind="webhookConfig.Url" placeholder="https://example.com/webhook" />
+                </div>
+                <div class="form-group">
+                    <label>Kimlik Dogrulama Header</label>
+                    <input type="text" @bind="webhookConfig.AuthHeader" placeholder="Authorization: Bearer ..." />
+                </div>
+                <div class="webhook-events">
+                    <label>Tetiklenecek Olaylar</label>
+                    <div class="event-checkboxes">
+                        <label><input type="checkbox" @bind="webhookConfig.OnKeywordMatch" /> Keyword Eslesmesi</label>
+                        <label><input type="checkbox" @bind="webhookConfig.OnFileBlock" /> Dosya Engelleme</label>
+                        <label><input type="checkbox" @bind="webhookConfig.OnUserLogin" /> Kullanici Girisi</label>
+                        <label><input type="checkbox" @bind="webhookConfig.OnUserLogout" /> Kullanici Cikisi</label>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" @onclick="TestWebhook">Webhook Test Et</button>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <h3>Arsivleme</h3>
+            <p class="section-desc">Mesaj arsivleme ve saklama politikalari.</p>
+
+            <div class="archive-settings">
+                <div class="form-group">
+                    <label>Mesaj Saklama Suresi (gun)</label>
+                    <input type="number" @bind="archiveSettings.RetentionDays" min="30" max="3650" />
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="archiveSettings.ArchiveToStorage" />
+                        Uzun sureli arsivleme (harici depolama)
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Arsiv Yolu</label>
+                    <input type="text" @bind="archiveSettings.ArchivePath" placeholder="\\server\archive" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-actions">
+        <button class="btn btn-primary" @onclick="SaveSettings">Ayarlari Kaydet</button>
+        <button class="btn btn-secondary" @onclick="ResetToDefaults">Varsayilanlara Don</button>
+    </div>
+</div>
+
+@code {
+    private List<WatchedKeyword> watchedKeywords = new();
+    private string newKeyword = "";
+    private string newKeywordAction = "Log";
+    private FilePolicy filePolicy = new();
+    private WebhookConfig webhookConfig = new();
+    private ArchiveSettings archiveSettings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        watchedKeywords = await StatsService.GetWatchedKeywordsAsync();
+        filePolicy = await StatsService.GetFilePolicyAsync();
+        webhookConfig = await StatsService.GetWebhookConfigAsync();
+        archiveSettings = await StatsService.GetArchiveSettingsAsync();
+    }
+
+    private async Task AddKeyword()
+    {
+        if (!string.IsNullOrWhiteSpace(newKeyword))
+        {
+            await StatsService.AddWatchedKeywordAsync(newKeyword, newKeywordAction);
+            watchedKeywords = await StatsService.GetWatchedKeywordsAsync();
+            newKeyword = "";
+        }
+    }
+
+    private async Task RemoveKeyword(Guid id)
+    {
+        await StatsService.RemoveWatchedKeywordAsync(id);
+        watchedKeywords = await StatsService.GetWatchedKeywordsAsync();
+    }
+
+    private async Task TestWebhook()
+    {
+        await StatsService.TestWebhookAsync(webhookConfig);
+    }
+
+    private async Task SaveSettings()
+    {
+        await StatsService.SaveFilePolicyAsync(filePolicy);
+        await StatsService.SaveWebhookConfigAsync(webhookConfig);
+        await StatsService.SaveArchiveSettingsAsync(archiveSettings);
+    }
+
+    private async Task ResetToDefaults()
+    {
+        filePolicy = new FilePolicy();
+        webhookConfig = new WebhookConfig();
+        archiveSettings = new ArchiveSettings();
+    }
+
+    public class WatchedKeyword
+    {
+        public Guid Id { get; set; }
+        public string Text { get; set; } = "";
+        public string Action { get; set; } = "Log";
+    }
+
+    public class FilePolicy
+    {
+        public bool AllowExecutables { get; set; } = false;
+        public bool AllowArchives { get; set; } = true;
+        public int MaxFileSizeMB { get; set; } = 100;
+        public string BlockedExtensions { get; set; } = ".exe, .bat, .cmd, .ps1";
+    }
+
+    public class WebhookConfig
+    {
+        public string Url { get; set; } = "";
+        public string AuthHeader { get; set; } = "";
+        public bool OnKeywordMatch { get; set; } = true;
+        public bool OnFileBlock { get; set; } = true;
+        public bool OnUserLogin { get; set; } = false;
+        public bool OnUserLogout { get; set; } = false;
+    }
+
+    public class ArchiveSettings
+    {
+        public int RetentionDays { get; set; } = 365;
+        public bool ArchiveToStorage { get; set; } = false;
+        public string ArchivePath { get; set; } = "";
+    }
+}

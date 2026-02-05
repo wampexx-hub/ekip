@@ -1,0 +1,157 @@
+@page "/"
+@inject DashboardService DashboardService
+@attribute [Authorize]
+
+<PageTitle>Genel Bakis - Ekip Admin</PageTitle>
+
+<div class="dashboard-page">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon users-icon">&#x1F465;</div>
+            <div class="stat-info">
+                <span class="stat-value">@stats.TotalUsers</span>
+                <span class="stat-label">Toplam Kullanici</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon online-icon">&#x1F7E2;</div>
+            <div class="stat-info">
+                <span class="stat-value">@stats.OnlineUsers</span>
+                <span class="stat-label">Cevrimici</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon messages-icon">&#x1F4E8;</div>
+            <div class="stat-info">
+                <span class="stat-value">@stats.TodayMessages</span>
+                <span class="stat-label">Bugunun Mesajlari</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon groups-icon">&#x1F4AC;</div>
+            <div class="stat-info">
+                <span class="stat-value">@stats.ActiveGroups</span>
+                <span class="stat-label">Aktif Grup</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-card recent-activity">
+            <h3>Son Aktiviteler</h3>
+            <ul class="activity-list">
+                @foreach (var activity in recentActivities)
+                {
+                    <li class="activity-item">
+                        <span class="activity-icon">@GetActivityIcon(activity.Type)</span>
+                        <div class="activity-content">
+                            <span class="activity-text">@activity.Description</span>
+                            <span class="activity-time">@activity.Time.ToString("HH:mm")</span>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="dashboard-card system-health">
+            <h3>Sistem Durumu</h3>
+            <div class="health-items">
+                <div class="health-item">
+                    <span class="health-label">API Sunucu</span>
+                    <span class="health-status @(systemHealth.ApiServer ? "healthy" : "unhealthy")">
+                        @(systemHealth.ApiServer ? "Aktif" : "Sorunlu")
+                    </span>
+                </div>
+                <div class="health-item">
+                    <span class="health-label">Veritabani</span>
+                    <span class="health-status @(systemHealth.Database ? "healthy" : "unhealthy")">
+                        @(systemHealth.Database ? "Bagli" : "Baglanti Yok")
+                    </span>
+                </div>
+                <div class="health-item">
+                    <span class="health-label">Redis Cache</span>
+                    <span class="health-status @(systemHealth.Redis ? "healthy" : "unhealthy")">
+                        @(systemHealth.Redis ? "Aktif" : "Sorunlu")
+                    </span>
+                </div>
+                <div class="health-item">
+                    <span class="health-label">SignalR Hub</span>
+                    <span class="health-status @(systemHealth.SignalR ? "healthy" : "unhealthy")">
+                        @(systemHealth.SignalR ? "Calisiyor" : "Durduruldu")
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <div class="dashboard-card online-users">
+            <h3>Cevrimici Kullanicilar</h3>
+            <ul class="user-list">
+                @foreach (var user in onlineUsers.Take(10))
+                {
+                    <li class="user-item">
+                        <span class="user-avatar">@user.DisplayName.Substring(0, 1).ToUpper()</span>
+                        <span class="user-name">@user.DisplayName</span>
+                        <span class="user-status @user.Status.ToString().ToLower()"></span>
+                    </li>
+                }
+            </ul>
+            @if (onlineUsers.Count > 10)
+            {
+                <a href="users?filter=online" class="view-all">Tumunu Gor (@onlineUsers.Count)</a>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    private DashboardStats stats = new();
+    private SystemHealth systemHealth = new();
+    private List<ActivityItem> recentActivities = new();
+    private List<OnlineUser> onlineUsers = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        stats = await DashboardService.GetStatsAsync();
+        systemHealth = await DashboardService.GetSystemHealthAsync();
+        recentActivities = await DashboardService.GetRecentActivitiesAsync();
+        onlineUsers = await DashboardService.GetOnlineUsersAsync();
+    }
+
+    private string GetActivityIcon(string type) => type switch
+    {
+        "login" => "&#x1F511;",
+        "message" => "&#x1F4E8;",
+        "group" => "&#x1F4AC;",
+        "file" => "&#x1F4CE;",
+        _ => "&#x1F4CC;"
+    };
+
+    public class DashboardStats
+    {
+        public int TotalUsers { get; set; }
+        public int OnlineUsers { get; set; }
+        public int TodayMessages { get; set; }
+        public int ActiveGroups { get; set; }
+    }
+
+    public class SystemHealth
+    {
+        public bool ApiServer { get; set; } = true;
+        public bool Database { get; set; } = true;
+        public bool Redis { get; set; } = true;
+        public bool SignalR { get; set; } = true;
+    }
+
+    public class ActivityItem
+    {
+        public string Type { get; set; } = "";
+        public string Description { get; set; } = "";
+        public DateTime Time { get; set; }
+    }
+
+    public class OnlineUser
+    {
+        public string DisplayName { get; set; } = "";
+        public UserStatus Status { get; set; }
+    }
+}

@@ -1,0 +1,43 @@
+@inherits LayoutComponentBase
+
+<div class="admin-layout">
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <span class="logo-icon">E</span>
+                <span class="logo-text">Ekip Admin</span>
+            </div>
+        </div>
+        <NavMenu />
+        <div class="sidebar-footer">
+            <AuthorizeView>
+                <Authorized>
+                    <div class="user-info">
+                        <span class="user-icon">@context.User.Identity?.Name?.Substring(0, 1).ToUpper()</span>
+                        <span class="user-name">@context.User.Identity?.Name</span>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>@PageTitle</h1>
+            </div>
+            <div class="header-actions">
+                <span class="server-status online">Sunucu Aktif</span>
+            </div>
+        </header>
+
+        <div class="content-area">
+            @Body
+        </div>
+    </main>
+</div>
+
+@code {
+    [CascadingParameter]
+    private string? PageTitle { get; set; }
+}

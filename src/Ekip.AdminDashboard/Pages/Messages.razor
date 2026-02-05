@@ -1,0 +1,204 @@
+@page "/messages"
+@inject StatisticsService StatsService
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Mesaj Istatistikleri - Ekip Admin</PageTitle>
+
+<div class="messages-page">
+    <div class="page-header">
+        <h2>Mesaj Istatistikleri ve Arama</h2>
+        <div class="header-actions">
+            <select @bind="selectedPeriod" class="period-select">
+                <option value="today">Bugun</option>
+                <option value="week">Bu Hafta</option>
+                <option value="month">Bu Ay</option>
+                <option value="year">Bu Yil</option>
+            </select>
+            <button class="btn btn-secondary" @onclick="ExportReport">Rapor Indir</button>
+        </div>
+    </div>
+
+    <div class="stats-overview">
+        <div class="stat-card large">
+            <span class="stat-value">@stats.TotalMessages.ToString("N0")</span>
+            <span class="stat-label">Toplam Mesaj</span>
+            <span class="stat-trend positive">+@stats.GrowthPercent% gecen aya gore</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">@stats.DirectMessages.ToString("N0")</span>
+            <span class="stat-label">Birebir Mesaj</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">@stats.GroupMessages.ToString("N0")</span>
+            <span class="stat-label">Grup Mesaji</span>
+        </div>
+        <div class="stat-card">
+            <span class="stat-value">@stats.FileShares.ToString("N0")</span>
+            <span class="stat-label">Dosya Paylasimi</span>
+        </div>
+    </div>
+
+    <div class="search-section">
+        <h3>Mesaj Arama (Gozetim)</h3>
+        <div class="search-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Gonderen</label>
+                    <input type="text" @bind="searchParams.Sender" placeholder="Kullanici adi" />
+                </div>
+                <div class="form-group">
+                    <label>Alici</label>
+                    <input type="text" @bind="searchParams.Receiver" placeholder="Kullanici adi" />
+                </div>
+                <div class="form-group">
+                    <label>Anahtar Kelime</label>
+                    <input type="text" @bind="searchParams.Keyword" placeholder="Mesaj icerigi" />
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Baslangic Tarihi</label>
+                    <input type="date" @bind="searchParams.StartDate" />
+                </div>
+                <div class="form-group">
+                    <label>Bitis Tarihi</label>
+                    <input type="date" @bind="searchParams.EndDate" />
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-primary" @onclick="SearchMessages">Ara</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (searchResults.Any())
+    {
+        <div class="search-results">
+            <h3>Arama Sonuclari (@searchResults.Count sonuc)</h3>
+            <table class="messages-table">
+                <thead>
+                    <tr>
+                        <th>Tarih</th>
+                        <th>Gonderen</th>
+                        <th>Alici/Grup</th>
+                        <th>Mesaj</th>
+                        <th>Tur</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var msg in searchResults)
+                    {
+                        <tr>
+                            <td>@msg.SentAt.ToString("dd.MM.yyyy HH:mm")</td>
+                            <td>@msg.SenderName</td>
+                            <td>@msg.ReceiverName</td>
+                            <td class="message-content">@msg.Content</td>
+                            <td>
+                                <span class="type-badge @msg.Type.ToLower()">@msg.Type</span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <div class="charts-section">
+        <div class="chart-card">
+            <h3>Gunluk Mesaj Dagilimi</h3>
+            <div class="chart-placeholder">
+                <div class="bar-chart">
+                    @foreach (var day in dailyStats)
+                    {
+                        <div class="bar-container">
+                            <div class="bar" style="height: @(day.Count * 100 / maxDaily)%"></div>
+                            <span class="bar-label">@day.Day</span>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+        <div class="chart-card">
+            <h3>En Aktif Kullanicilar</h3>
+            <ul class="top-users-list">
+                @foreach (var user in topUsers)
+                {
+                    <li>
+                        <span class="user-name">@user.Name</span>
+                        <span class="user-count">@user.MessageCount mesaj</span>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: @(user.MessageCount * 100 / topUsers.First().MessageCount)%"></div>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+    </div>
+</div>
+
+@code {
+    private MessageStats stats = new();
+    private string selectedPeriod = "month";
+    private SearchParams searchParams = new();
+    private List<MessageResult> searchResults = new();
+    private List<DailyStat> dailyStats = new();
+    private List<TopUser> topUsers = new();
+    private int maxDaily = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        stats = await StatsService.GetMessageStatsAsync(selectedPeriod);
+        dailyStats = await StatsService.GetDailyStatsAsync();
+        topUsers = await StatsService.GetTopUsersAsync();
+        maxDaily = dailyStats.Any() ? dailyStats.Max(d => d.Count) : 1;
+    }
+
+    private async Task SearchMessages()
+    {
+        searchResults = await StatsService.SearchMessagesAsync(searchParams);
+    }
+
+    private async Task ExportReport()
+    {
+        await StatsService.ExportReportAsync(selectedPeriod);
+    }
+
+    public class MessageStats
+    {
+        public int TotalMessages { get; set; }
+        public int DirectMessages { get; set; }
+        public int GroupMessages { get; set; }
+        public int FileShares { get; set; }
+        public double GrowthPercent { get; set; }
+    }
+
+    public class SearchParams
+    {
+        public string? Sender { get; set; }
+        public string? Receiver { get; set; }
+        public string? Keyword { get; set; }
+        public DateTime? StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+    }
+
+    public class MessageResult
+    {
+        public string SenderName { get; set; } = "";
+        public string ReceiverName { get; set; } = "";
+        public string Content { get; set; } = "";
+        public string Type { get; set; } = "";
+        public DateTime SentAt { get; set; }
+    }
+
+    public class DailyStat
+    {
+        public string Day { get; set; } = "";
+        public int Count { get; set; }
+    }
+
+    public class TopUser
+    {
+        public string Name { get; set; } = "";
+        public int MessageCount { get; set; }
+    }
+}

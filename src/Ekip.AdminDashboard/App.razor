@@ -1,0 +1,34 @@
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
+                <NotAuthorized>
+                    <div class="unauthorized-container">
+                        <div class="unauthorized-box">
+                            <h2>Erisim Engellendi</h2>
+                            <p>Bu sayfaya erisim yetkiniz bulunmamaktadir.</p>
+                            <p>Lutfen sistem yoneticinizle iletisime geciniz.</p>
+                        </div>
+                    </div>
+                </NotAuthorized>
+                <Authorizing>
+                    <div class="loading-container">
+                        <div class="spinner"></div>
+                        <p>Kimlik dogrulamasi yapiliyor...</p>
+                    </div>
+                </Authorizing>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Sayfa Bulunamadi</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="not-found-container">
+                    <h1>404</h1>
+                    <p>Aradiginiz sayfa bulunamadi.</p>
+                    <a href="/">Ana Sayfaya Don</a>
+                </div>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>

@@ -1,0 +1,244 @@
+@page "/settings"
+@inject DashboardService DashboardService
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Ayarlar - Ekip Admin</PageTitle>
+
+<div class="settings-page">
+    <div class="page-header">
+        <h2>Sistem Ayarlari</h2>
+    </div>
+
+    <div class="settings-sections">
+        <div class="settings-card">
+            <h3>Genel Ayarlar</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>Sunucu Adi</label>
+                    <input type="text" @bind="settings.ServerName" />
+                </div>
+                <div class="form-group">
+                    <label>Sirket Adi</label>
+                    <input type="text" @bind="settings.CompanyName" />
+                </div>
+                <div class="form-group">
+                    <label>Varsayilan Dil</label>
+                    <select @bind="settings.DefaultLanguage">
+                        <option value="tr">Turkce</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Active Directory Ayarlari</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>LDAP Sunucu</label>
+                    <input type="text" @bind="settings.LdapServer" placeholder="ldap://dc.sirket.local" />
+                </div>
+                <div class="form-group">
+                    <label>Base DN</label>
+                    <input type="text" @bind="settings.BaseDN" placeholder="DC=sirket,DC=local" />
+                </div>
+                <div class="form-group">
+                    <label>Servis Hesabi</label>
+                    <input type="text" @bind="settings.ServiceAccount" placeholder="DOMAIN\\service-account" />
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="settings.AutoSyncAD" />
+                        Otomatik AD Senkronizasyonu (her 6 saatte)
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Veritabani Ayarlari</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>PostgreSQL Sunucu</label>
+                    <input type="text" @bind="settings.DbHost" />
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" @bind="settings.DbPort" />
+                </div>
+                <div class="form-group">
+                    <label>Veritabani Adi</label>
+                    <input type="text" @bind="settings.DbName" />
+                </div>
+                <div class="form-group">
+                    <label>Kullanici Adi</label>
+                    <input type="text" @bind="settings.DbUser" />
+                </div>
+                <div class="form-group">
+                    <label>Sifre</label>
+                    <input type="password" @bind="settings.DbPassword" />
+                </div>
+                <button class="btn btn-secondary" @onclick="TestDbConnection">Baglanti Test Et</button>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Redis Ayarlari</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>Redis Sunucu</label>
+                    <input type="text" @bind="settings.RedisHost" />
+                </div>
+                <div class="form-group">
+                    <label>Port</label>
+                    <input type="number" @bind="settings.RedisPort" />
+                </div>
+                <div class="form-group">
+                    <label>Sifre (opsiyonel)</label>
+                    <input type="password" @bind="settings.RedisPassword" />
+                </div>
+                <button class="btn btn-secondary" @onclick="TestRedisConnection">Baglanti Test Et</button>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Dosya Depolama</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>Depolama Yolu</label>
+                    <input type="text" @bind="settings.StoragePath" placeholder="C:\EkipData\uploads" />
+                </div>
+                <div class="form-group">
+                    <label>Maksimum Dosya Boyutu (MB)</label>
+                    <input type="number" @bind="settings.MaxFileSizeMB" min="1" max="500" />
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="settings.CompressUploads" />
+                        Yuklemeleri sikiştir
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Guvenlik Ayarlari</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>Oturum Suresi (saat)</label>
+                    <input type="number" @bind="settings.SessionTimeoutHours" min="1" max="72" />
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="settings.RequireHttps" />
+                        HTTPS Zorunlu
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="settings.EnableAuditLog" />
+                        Denetim Kayitlarini Etkinlestir
+                    </label>
+                </div>
+                <div class="form-group">
+                    <label>Izin Verilen IP Araliklari (CIDR)</label>
+                    <textarea @bind="settings.AllowedIpRanges" placeholder="10.0.0.0/8&#10;192.168.0.0/16"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>E-posta Bildirimleri</h3>
+            <div class="settings-form">
+                <div class="form-group">
+                    <label>SMTP Sunucu</label>
+                    <input type="text" @bind="settings.SmtpServer" />
+                </div>
+                <div class="form-group">
+                    <label>SMTP Port</label>
+                    <input type="number" @bind="settings.SmtpPort" />
+                </div>
+                <div class="form-group">
+                    <label>Gonderen E-posta</label>
+                    <input type="email" @bind="settings.SmtpFrom" />
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" @bind="settings.SmtpUseTls" />
+                        TLS Kullan
+                    </label>
+                </div>
+                <button class="btn btn-secondary" @onclick="SendTestEmail">Test E-postasi Gonder</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="settings-actions">
+        <button class="btn btn-primary" @onclick="SaveSettings">Ayarlari Kaydet</button>
+        <button class="btn btn-secondary" @onclick="ExportSettings">Ayarlari Disa Aktar</button>
+        <button class="btn btn-secondary" @onclick="ImportSettings">Ayarlari Ice Aktar</button>
+    </div>
+</div>
+
+@code {
+    private SystemSettings settings = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        settings = await DashboardService.GetSystemSettingsAsync();
+    }
+
+    private async Task SaveSettings()
+    {
+        await DashboardService.SaveSystemSettingsAsync(settings);
+    }
+
+    private async Task TestDbConnection() => await DashboardService.TestDatabaseConnectionAsync(settings);
+    private async Task TestRedisConnection() => await DashboardService.TestRedisConnectionAsync(settings);
+    private async Task SendTestEmail() => await DashboardService.SendTestEmailAsync(settings);
+    private async Task ExportSettings() => await DashboardService.ExportSettingsAsync();
+    private async Task ImportSettings() { }
+
+    public class SystemSettings
+    {
+        // General
+        public string ServerName { get; set; } = "Ekip Messenger";
+        public string CompanyName { get; set; } = "";
+        public string DefaultLanguage { get; set; } = "tr";
+
+        // AD
+        public string LdapServer { get; set; } = "";
+        public string BaseDN { get; set; } = "";
+        public string ServiceAccount { get; set; } = "";
+        public bool AutoSyncAD { get; set; } = true;
+
+        // Database
+        public string DbHost { get; set; } = "localhost";
+        public int DbPort { get; set; } = 5432;
+        public string DbName { get; set; } = "ekip";
+        public string DbUser { get; set; } = "postgres";
+        public string DbPassword { get; set; } = "";
+
+        // Redis
+        public string RedisHost { get; set; } = "localhost";
+        public int RedisPort { get; set; } = 6379;
+        public string RedisPassword { get; set; } = "";
+
+        // Storage
+        public string StoragePath { get; set; } = @"C:\EkipData\uploads";
+        public int MaxFileSizeMB { get; set; } = 100;
+        public bool CompressUploads { get; set; } = false;
+
+        // Security
+        public int SessionTimeoutHours { get; set; } = 24;
+        public bool RequireHttps { get; set; } = true;
+        public bool EnableAuditLog { get; set; } = true;
+        public string AllowedIpRanges { get; set; } = "";
+
+        // Email
+        public string SmtpServer { get; set; } = "";
+        public int SmtpPort { get; set; } = 587;
+        public string SmtpFrom { get; set; } = "";
+        public bool SmtpUseTls { get; set; } = true;
+    }
+}

@@ -1,0 +1,188 @@
+@page "/users"
+@inject UserManagementService UserService
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Kullanici Yonetimi - Ekip Admin</PageTitle>
+
+<div class="users-page">
+    <div class="page-header">
+        <h2>Kullanici Yonetimi</h2>
+        <div class="header-actions">
+            <input type="text" @bind="searchTerm" @bind:event="oninput" placeholder="Kullanici ara..." class="search-input" />
+            <button class="btn btn-primary" @onclick="SyncFromAD">AD ile Senkronize Et</button>
+        </div>
+    </div>
+
+    <div class="filters">
+        <button class="filter-btn @(currentFilter == "all" ? "active" : "")" @onclick="() => FilterUsers("all")">Tumu (@allUsers.Count)</button>
+        <button class="filter-btn @(currentFilter == "online" ? "active" : "")" @onclick="() => FilterUsers("online")">Cevrimici (@allUsers.Count(u => u.IsOnline))</button>
+        <button class="filter-btn @(currentFilter == "admins" ? "active" : "")" @onclick="() => FilterUsers("admins")">Yoneticiler (@allUsers.Count(u => u.IsAdmin))</button>
+        <button class="filter-btn @(currentFilter == "disabled" ? "active" : "")" @onclick="() => FilterUsers("disabled")">Devre Disi (@allUsers.Count(u => !u.IsActive))</button>
+    </div>
+
+    <div class="users-table-container">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Kullanici</th>
+                    <th>E-posta</th>
+                    <th>Departman</th>
+                    <th>Durum</th>
+                    <th>Son Giris</th>
+                    <th>Islemler</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in filteredUsers)
+                {
+                    <tr class="@(user.IsOnline ? "online" : "")">
+                        <td class="user-cell">
+                            <span class="user-avatar">@user.DisplayName.Substring(0, 1).ToUpper()</span>
+                            <div class="user-info">
+                                <span class="user-name">@user.DisplayName</span>
+                                <span class="user-username">@user.Username</span>
+                            </div>
+                        </td>
+                        <td>@user.Email</td>
+                        <td>@user.Department</td>
+                        <td>
+                            <span class="status-badge @(user.IsOnline ? "online" : "offline")">
+                                @(user.IsOnline ? "Cevrimici" : "Cevrimdisi")
+                            </span>
+                        </td>
+                        <td>@(user.LastLogin?.ToString("dd.MM.yyyy HH:mm") ?? "-")</td>
+                        <td class="actions-cell">
+                            <button class="btn-icon" title="Detay" @onclick="() => ViewUser(user.Id)">&#x1F441;</button>
+                            <button class="btn-icon" title="Duzenle" @onclick="() => EditUser(user.Id)">&#x270F;</button>
+                            @if (user.IsActive)
+                            {
+                                <button class="btn-icon danger" title="Devre Disi Birak" @onclick="() => DisableUser(user.Id)">&#x1F6AB;</button>
+                            }
+                            else
+                            {
+                                <button class="btn-icon success" title="Etkinlestir" @onclick="() => EnableUser(user.Id)">&#x2705;</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (selectedUser != null)
+    {
+        <div class="modal-overlay" @onclick="CloseModal">
+            <div class="modal" @onclick:stopPropagation>
+                <div class="modal-header">
+                    <h3>Kullanici Detayi</h3>
+                    <button class="close-btn" @onclick="CloseModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="detail-row">
+                        <span class="label">Ad Soyad:</span>
+                        <span class="value">@selectedUser.DisplayName</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Kullanici Adi:</span>
+                        <span class="value">@selectedUser.Username</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">E-posta:</span>
+                        <span class="value">@selectedUser.Email</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Departman:</span>
+                        <span class="value">@selectedUser.Department</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Kayit Tarihi:</span>
+                        <span class="value">@selectedUser.CreatedAt.ToString("dd.MM.yyyy HH:mm")</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="label">Toplam Mesaj:</span>
+                        <span class="value">@selectedUser.MessageCount</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<UserViewModel> allUsers = new();
+    private List<UserViewModel> filteredUsers = new();
+    private UserViewModel? selectedUser;
+    private string searchTerm = "";
+    private string currentFilter = "all";
+
+    protected override async Task OnInitializedAsync()
+    {
+        allUsers = await UserService.GetAllUsersAsync();
+        FilterUsers("all");
+    }
+
+    private void FilterUsers(string filter)
+    {
+        currentFilter = filter;
+        filteredUsers = filter switch
+        {
+            "online" => allUsers.Where(u => u.IsOnline).ToList(),
+            "admins" => allUsers.Where(u => u.IsAdmin).ToList(),
+            "disabled" => allUsers.Where(u => !u.IsActive).ToList(),
+            _ => allUsers
+        };
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            filteredUsers = filteredUsers.Where(u =>
+                u.DisplayName.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                u.Username.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                u.Email.Contains(searchTerm, StringComparison.OrdinalIgnoreCase)
+            ).ToList();
+        }
+    }
+
+    private async Task SyncFromAD()
+    {
+        await UserService.SyncFromActiveDirectoryAsync();
+        allUsers = await UserService.GetAllUsersAsync();
+        FilterUsers(currentFilter);
+    }
+
+    private void ViewUser(Guid id)
+    {
+        selectedUser = allUsers.FirstOrDefault(u => u.Id == id);
+    }
+
+    private void EditUser(Guid id) { }
+    private async Task DisableUser(Guid id)
+    {
+        await UserService.SetUserActiveStatusAsync(id, false);
+        allUsers = await UserService.GetAllUsersAsync();
+        FilterUsers(currentFilter);
+    }
+
+    private async Task EnableUser(Guid id)
+    {
+        await UserService.SetUserActiveStatusAsync(id, true);
+        allUsers = await UserService.GetAllUsersAsync();
+        FilterUsers(currentFilter);
+    }
+
+    private void CloseModal() => selectedUser = null;
+
+    public class UserViewModel
+    {
+        public Guid Id { get; set; }
+        public string Username { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Email { get; set; } = "";
+        public string Department { get; set; } = "";
+        public bool IsOnline { get; set; }
+        public bool IsAdmin { get; set; }
+        public bool IsActive { get; set; } = true;
+        public DateTime? LastLogin { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int MessageCount { get; set; }
+    }
+}

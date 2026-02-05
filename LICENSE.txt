@@ -1,0 +1,36 @@
+EKIP MESSENGER - KURUMSAL LISANS SOZLESMESI
+============================================
+
+Telif Hakki (c) 2024 Sirketiniz. Tum haklari saklidir.
+
+1. LISANS VERME
+Bu yazilim ve ilgili dokumantasyon dosyalari ("Yazilim"), yalnizca
+sirketiniz ve yetkili is ortaklari tarafindan dahili kullanim amaciyla
+lisanslanmistir.
+
+2. KISITLAMALAR
+Asagidaki eylemler kesinlikle yasaktir:
+- Yazilimin ucuncu sahislara dagitimi, satisi veya kiralama
+- Yazilimin kaynak kodunun tersine muhendislik ile elde edilmesi
+- Yazilimin izinsiz kopyalanmasi veya cogaltilmasi
+- Yazilimin yetkisiz kisilerce kullanilmasi
+
+3. GIZLILIK
+Bu yazilim gizli ve tescilli bilgiler icerir. Kullanicilar, yazilim
+ve ilgili tum bilgileri gizli tutmayi kabul eder.
+
+4. GARANTI REDDI
+BU YAZILIM "OLDUGU GIBI" SUNULMAKTADIR. SIRKETI, ACIK VEYA ZIMNI
+HICBIR GARANTI VERMEZ. YAZILIMIN KULLANIMINDAN KAYNAKLANAN HICBIR
+ZARARDAN SORUMLU DEGILDIR.
+
+5. DESTEK
+Teknik destek, sirket IT departmani tarafindan saglanmaktadir.
+Destek icin: it-destek@sirketiniz.com
+
+6. SONLANDIRMA
+Bu lisans, kosullarin ihlali durumunda otomatik olarak sona erer.
+Lisansin sona ermesi halinde, yazilimin tum kopyalari silinmelidir.
+
+============================================
+Bu yazilimi kullanarak yukaridaki kosullari kabul etmis sayilirsiniz.

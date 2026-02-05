@@ -7,6 +7,18 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Windows Service olarak calisma destegi
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "EkipMessengerServer";
+});
+
+// Konfigurasyonu dosyadan yukle
+builder.Configuration
+    .SetBasePath(AppContext.BaseDirectory)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

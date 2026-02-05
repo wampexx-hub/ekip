@@ -1,0 +1,129 @@
+@page "/groups"
+@inject UserManagementService UserService
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Grup Yonetimi - Ekip Admin</PageTitle>
+
+<div class="groups-page">
+    <div class="page-header">
+        <h2>Grup Yonetimi</h2>
+        <div class="header-actions">
+            <input type="text" @bind="searchTerm" @bind:event="oninput" placeholder="Grup ara..." class="search-input" />
+            <button class="btn btn-primary" @onclick="() => showCreateModal = true">Yeni Grup Olustur</button>
+        </div>
+    </div>
+
+    <div class="groups-grid">
+        @foreach (var group in filteredGroups)
+        {
+            <div class="group-card">
+                <div class="group-header">
+                    <span class="group-avatar">@group.Name.Substring(0, 1).ToUpper()</span>
+                    <div class="group-info">
+                        <h4>@group.Name</h4>
+                        <span class="group-type">@(group.IsPublic ? "Herkese Acik" : "Ozel")</span>
+                    </div>
+                </div>
+                <p class="group-description">@(group.Description ?? "Aciklama yok")</p>
+                <div class="group-stats">
+                    <div class="stat">
+                        <span class="stat-value">@group.MemberCount</span>
+                        <span class="stat-label">Uye</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value">@group.MessageCount</span>
+                        <span class="stat-label">Mesaj</span>
+                    </div>
+                </div>
+                <div class="group-footer">
+                    <span class="created-date">Olusturulma: @group.CreatedAt.ToString("dd.MM.yyyy")</span>
+                    <div class="group-actions">
+                        <button class="btn-icon" title="Detay" @onclick="() => ViewGroup(group)">&#x1F441;</button>
+                        <button class="btn-icon" title="Duzenle" @onclick="() => EditGroup(group)">&#x270F;</button>
+                        <button class="btn-icon danger" title="Sil" @onclick="() => DeleteGroup(group.Id)">&#x1F5D1;</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (showCreateModal)
+    {
+        <div class="modal-overlay" @onclick="CloseModals">
+            <div class="modal" @onclick:stopPropagation>
+                <div class="modal-header">
+                    <h3>Yeni Grup Olustur</h3>
+                    <button class="close-btn" @onclick="CloseModals">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Grup Adi</label>
+                        <input type="text" @bind="newGroup.Name" placeholder="Grup adi giriniz" />
+                    </div>
+                    <div class="form-group">
+                        <label>Aciklama</label>
+                        <textarea @bind="newGroup.Description" placeholder="Grup aciklamasi"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" @bind="newGroup.IsPublic" />
+                            Herkese Acik Grup
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModals">Iptal</button>
+                    <button class="btn btn-primary" @onclick="CreateGroup">Olustur</button>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private List<GroupViewModel> groups = new();
+    private List<GroupViewModel> filteredGroups = new();
+    private GroupViewModel newGroup = new();
+    private string searchTerm = "";
+    private bool showCreateModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        groups = await UserService.GetAllGroupsAsync();
+        filteredGroups = groups;
+    }
+
+    private async Task CreateGroup()
+    {
+        await UserService.CreateGroupAsync(newGroup);
+        groups = await UserService.GetAllGroupsAsync();
+        filteredGroups = groups;
+        newGroup = new();
+        showCreateModal = false;
+    }
+
+    private void ViewGroup(GroupViewModel group) { }
+    private void EditGroup(GroupViewModel group) { }
+    private async Task DeleteGroup(Guid id)
+    {
+        await UserService.DeleteGroupAsync(id);
+        groups = await UserService.GetAllGroupsAsync();
+        filteredGroups = groups;
+    }
+
+    private void CloseModals()
+    {
+        showCreateModal = false;
+    }
+
+    public class GroupViewModel
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = "";
+        public string? Description { get; set; }
+        public bool IsPublic { get; set; }
+        public int MemberCount { get; set; }
+        public int MessageCount { get; set; }
+        public DateTime CreatedAt { get; set; }
+    }
+}

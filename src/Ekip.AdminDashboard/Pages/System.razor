@@ -1,0 +1,209 @@
+@page "/system"
+@inject DashboardService DashboardService
+@attribute [Authorize(Policy = "AdminOnly")]
+
+<PageTitle>Sistem Durumu - Ekip Admin</PageTitle>
+
+<div class="system-page">
+    <div class="page-header">
+        <h2>Sistem Durumu ve Izleme</h2>
+        <div class="header-actions">
+            <span class="last-update">Son guncelleme: @lastUpdate.ToString("HH:mm:ss")</span>
+            <button class="btn btn-secondary" @onclick="RefreshStatus">Yenile</button>
+        </div>
+    </div>
+
+    <div class="system-overview">
+        <div class="service-cards">
+            <div class="service-card @(services.ApiServer.IsRunning ? "healthy" : "error")">
+                <div class="service-icon">&#x1F5A5;</div>
+                <div class="service-info">
+                    <h4>API Sunucu</h4>
+                    <span class="service-status">@(services.ApiServer.IsRunning ? "Calisiyor" : "Durduruldu")</span>
+                    <span class="service-uptime">Uptime: @services.ApiServer.Uptime</span>
+                </div>
+            </div>
+            <div class="service-card @(services.Database.IsRunning ? "healthy" : "error")">
+                <div class="service-icon">&#x1F5C4;</div>
+                <div class="service-info">
+                    <h4>PostgreSQL</h4>
+                    <span class="service-status">@(services.Database.IsRunning ? "Bagli" : "Baglanti Yok")</span>
+                    <span class="service-detail">Aktif baglanti: @services.Database.ActiveConnections</span>
+                </div>
+            </div>
+            <div class="service-card @(services.Redis.IsRunning ? "healthy" : "error")">
+                <div class="service-icon">&#x26A1;</div>
+                <div class="service-info">
+                    <h4>Redis Cache</h4>
+                    <span class="service-status">@(services.Redis.IsRunning ? "Aktif" : "Devre Disi")</span>
+                    <span class="service-detail">Bellek: @services.Redis.MemoryUsage</span>
+                </div>
+            </div>
+            <div class="service-card @(services.SignalR.IsRunning ? "healthy" : "error")">
+                <div class="service-icon">&#x1F4E1;</div>
+                <div class="service-info">
+                    <h4>SignalR Hub</h4>
+                    <span class="service-status">@(services.SignalR.IsRunning ? "Aktif" : "Durduruldu")</span>
+                    <span class="service-detail">Bagli istemci: @services.SignalR.ConnectedClients</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="system-metrics">
+        <div class="metric-card">
+            <h3>Sunucu Kaynaklari</h3>
+            <div class="metric-item">
+                <span class="metric-label">CPU Kullanimi</span>
+                <div class="progress-bar">
+                    <div class="progress @GetCpuClass(metrics.CpuUsage)" style="width: @metrics.CpuUsage%"></div>
+                </div>
+                <span class="metric-value">@metrics.CpuUsage%</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Bellek Kullanimi</span>
+                <div class="progress-bar">
+                    <div class="progress @GetMemoryClass(metrics.MemoryUsage)" style="width: @metrics.MemoryUsage%"></div>
+                </div>
+                <span class="metric-value">@metrics.MemoryUsage% (@metrics.MemoryUsedGB GB / @metrics.MemoryTotalGB GB)</span>
+            </div>
+            <div class="metric-item">
+                <span class="metric-label">Disk Kullanimi</span>
+                <div class="progress-bar">
+                    <div class="progress @GetDiskClass(metrics.DiskUsage)" style="width: @metrics.DiskUsage%"></div>
+                </div>
+                <span class="metric-value">@metrics.DiskUsage% (@metrics.DiskUsedGB GB / @metrics.DiskTotalGB GB)</span>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <h3>Uygulama Metrikleri</h3>
+            <div class="app-metrics">
+                <div class="app-metric">
+                    <span class="metric-value">@metrics.RequestsPerMinute</span>
+                    <span class="metric-label">Istek/dk</span>
+                </div>
+                <div class="app-metric">
+                    <span class="metric-value">@metrics.AverageResponseTime ms</span>
+                    <span class="metric-label">Ort. Yanit Suresi</span>
+                </div>
+                <div class="app-metric">
+                    <span class="metric-value">@metrics.ActiveSessions</span>
+                    <span class="metric-label">Aktif Oturum</span>
+                </div>
+                <div class="app-metric">
+                    <span class="metric-value">@metrics.ErrorRate%</span>
+                    <span class="metric-label">Hata Orani</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="logs-section">
+        <div class="logs-header">
+            <h3>Son Sistem Loglari</h3>
+            <div class="log-filters">
+                <select @bind="logLevel">
+                    <option value="all">Tum Seviyeler</option>
+                    <option value="error">Hatalar</option>
+                    <option value="warning">Uyarilar</option>
+                    <option value="info">Bilgi</option>
+                </select>
+                <button class="btn btn-secondary" @onclick="DownloadLogs">Loglari Indir</button>
+            </div>
+        </div>
+        <div class="logs-container">
+            @foreach (var log in filteredLogs)
+            {
+                <div class="log-entry @log.Level.ToLower()">
+                    <span class="log-time">@log.Timestamp.ToString("HH:mm:ss.fff")</span>
+                    <span class="log-level">@log.Level</span>
+                    <span class="log-message">@log.Message</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="maintenance-section">
+        <h3>Bakim Islemleri</h3>
+        <div class="maintenance-actions">
+            <button class="btn btn-warning" @onclick="ClearCache">Cache Temizle</button>
+            <button class="btn btn-warning" @onclick="RestartSignalR">SignalR Yeniden Baslat</button>
+            <button class="btn btn-danger" @onclick="RestartServer">Sunucuyu Yeniden Baslat</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ServiceStatus services = new();
+    private SystemMetrics metrics = new();
+    private List<LogEntry> logs = new();
+    private List<LogEntry> filteredLogs = new();
+    private string logLevel = "all";
+    private DateTime lastUpdate = DateTime.Now;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshStatus();
+    }
+
+    private async Task RefreshStatus()
+    {
+        services = await DashboardService.GetServiceStatusAsync();
+        metrics = await DashboardService.GetSystemMetricsAsync();
+        logs = await DashboardService.GetRecentLogsAsync();
+        FilterLogs();
+        lastUpdate = DateTime.Now;
+    }
+
+    private void FilterLogs()
+    {
+        filteredLogs = logLevel == "all"
+            ? logs
+            : logs.Where(l => l.Level.Equals(logLevel, StringComparison.OrdinalIgnoreCase)).ToList();
+    }
+
+    private string GetCpuClass(int usage) => usage > 80 ? "danger" : usage > 60 ? "warning" : "normal";
+    private string GetMemoryClass(int usage) => usage > 85 ? "danger" : usage > 70 ? "warning" : "normal";
+    private string GetDiskClass(int usage) => usage > 90 ? "danger" : usage > 75 ? "warning" : "normal";
+
+    private async Task ClearCache() => await DashboardService.ClearCacheAsync();
+    private async Task RestartSignalR() => await DashboardService.RestartSignalRAsync();
+    private async Task RestartServer() => await DashboardService.RestartServerAsync();
+    private async Task DownloadLogs() => await DashboardService.DownloadLogsAsync();
+
+    public class ServiceStatus
+    {
+        public ServiceInfo ApiServer { get; set; } = new() { IsRunning = true, Uptime = "5g 12s 34dk" };
+        public DatabaseInfo Database { get; set; } = new() { IsRunning = true, ActiveConnections = 12 };
+        public RedisInfo Redis { get; set; } = new() { IsRunning = true, MemoryUsage = "256 MB" };
+        public SignalRInfo SignalR { get; set; } = new() { IsRunning = true, ConnectedClients = 45 };
+    }
+
+    public class ServiceInfo { public bool IsRunning { get; set; } public string Uptime { get; set; } = ""; }
+    public class DatabaseInfo { public bool IsRunning { get; set; } public int ActiveConnections { get; set; } }
+    public class RedisInfo { public bool IsRunning { get; set; } public string MemoryUsage { get; set; } = ""; }
+    public class SignalRInfo { public bool IsRunning { get; set; } public int ConnectedClients { get; set; } }
+
+    public class SystemMetrics
+    {
+        public int CpuUsage { get; set; } = 35;
+        public int MemoryUsage { get; set; } = 62;
+        public double MemoryUsedGB { get; set; } = 5.0;
+        public double MemoryTotalGB { get; set; } = 8.0;
+        public int DiskUsage { get; set; } = 45;
+        public double DiskUsedGB { get; set; } = 45;
+        public double DiskTotalGB { get; set; } = 100;
+        public int RequestsPerMinute { get; set; } = 120;
+        public int AverageResponseTime { get; set; } = 45;
+        public int ActiveSessions { get; set; } = 38;
+        public double ErrorRate { get; set; } = 0.2;
+    }
+
+    public class LogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public string Level { get; set; } = "";
+        public string Message { get; set; } = "";
+    }
+}
